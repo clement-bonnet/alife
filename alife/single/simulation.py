@@ -121,3 +121,7 @@ def run():
         positions, velocities = update_particles(positions, velocities, masses, radii, dt)
         fps = 1 / (time.perf_counter() - t_0)
         visualizer.update_fig(positions, radii, step, fps)
+
+
+if __name__ == "__main__":
+    run()
