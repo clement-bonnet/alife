@@ -17,7 +17,7 @@ class ParticleCharachteristics(NamedTuple):
 
 
 P_CHARACHTERISTICS = {
-    0: ParticleCharachteristics(mass=1, radius=0.01),
+    0: ParticleCharachteristics(mass=1, radius=0.05),
     1: ParticleCharachteristics(mass=10, radius=0.02),
     2: ParticleCharachteristics(mass=100, radius=0.03),
 }

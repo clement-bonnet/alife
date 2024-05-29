@@ -1,20 +1,59 @@
 import jax
 import jax.numpy as jnp
 
-from alife.multi.particles import Particle
+from alife.multi.particles import Particle, P_CHARACHTERISTICS
 
 
 def compute_forces(particles: Particle) -> jax.Array:
     forces = jnp.zeros_like(particles.xy)
-    forces += boundary_force(particles)
+    forces += atomic_repulsion(particles)
     return forces
 
 
-def boundary_force(particles: Particle) -> jax.Array:
-    constant = 100.0
-    power = 4
-    forces = -constant * power * particles.xy ** (power - 1)
+def atomic_repulsion(particles: Particle) -> jax.Array:
+    # TODO: improve the curve shape of the atomic repulsion (more localized, take radius into account, etc.)
+    constant = 5e0
+    differences = particles.xy[:, None] - particles.xy[None, :]
+    distances = jnp.sqrt(jnp.sum(differences**2, axis=-1, keepdims=True))
+    forces = constant * jnp.sum(differences / (distances**3 + 1e-9), axis=1)
     return forces
+
+
+def merge_particles(particles: Particle) -> Particle:
+    differences = particles.xy[:, None] - particles.xy[None, :]
+    distances = jnp.sqrt(jnp.sum(differences**2, axis=-1))
+    # set distances to itself to infinity
+    distances = distances.at[jnp.arange(distances.shape[0]), jnp.arange(distances.shape[0])].set(jnp.inf)
+    # set lower triangle to infinity
+    distances = distances.at[jnp.tril_indices(distances.shape[0])].set(jnp.inf)
+    # for each particle, find the closest other particle
+    closest_indices = jnp.argmin(distances, axis=1)
+    # for each particle, if the closest particle is within a range of 0.1 then merge them
+    closest_particles_xy = jnp.take(particles.xy, closest_indices, axis=0)
+    closest_particles_v = jnp.take(particles.v, closest_indices, axis=0)
+    closest_particles_type = jnp.take(particles.type, closest_indices)
+    closest_particles_alive = jnp.take(particles.alive, closest_indices)
+    closest_particles_distance = jnp.take(distances, closest_indices)
+    particles_radii = jnp.take(P_CHARACHTERISTICS.radius, particles.type)
+    num_types = len(P_CHARACHTERISTICS.radius)
+    # maybe distances[jnp.arange(distances.shape[0]), closest_indices]
+    merge_indices = (
+        particles.alive
+        & closest_particles_alive
+        & (particles.type == closest_particles_type)
+        & (particles.type < num_types - 1)
+        & (closest_particles_distance < 10 * particles_radii)
+    )
+    # make not alive the closest particle
+    # alive = jnp.where(merge_indices, False, particles.alive)  # TODO: I think this is wrong
+    alive = particles.alive
+    particles = Particle(
+        xy=jnp.where(merge_indices[:, None], (particles.xy + closest_particles_xy) / 2, particles.xy),
+        v=jnp.where(merge_indices[:, None], (particles.v + closest_particles_v) / 2, particles.v),
+        type=jnp.where(merge_indices, particles.type + 1, particles.type),
+        alive=alive,
+    )
+    return particles
 
 
 # def compute_forces(positions, masses, radii):

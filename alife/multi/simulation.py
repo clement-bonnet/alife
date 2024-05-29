@@ -7,7 +7,8 @@ import chex
 
 from alife.multi.visualizer import Visualizer
 from alife.multi.particles import Particle, P_CHARACHTERISTICS
-from alife.multi.forces import compute_forces
+from alife.multi.forces import compute_forces, merge_particles
+from alife.multi.elastic_collision import compute_elastic_collision_boundaries
 
 
 def init_particles(
@@ -35,10 +36,12 @@ def init_particles(
 
 def make_update_particles(dt: float, num_updates: int) -> Callable[[Particle], Particle]:
     def update_particles_once(particles: Particle, _) -> Tuple[Particle, None]:
+        particles = merge_particles(particles)
         forces = compute_forces(particles)
         masses = jnp.take(P_CHARACHTERISTICS.mass, particles.type)
         accelerations = forces / masses[:, None]
         velocities = particles.v + dt * accelerations
+        velocities = compute_elastic_collision_boundaries(velocities, particles)
         # Integration step
         positions = particles.xy + dt * velocities
         particles = Particle(
@@ -56,20 +59,21 @@ def make_update_particles(dt: float, num_updates: int) -> Callable[[Particle], P
 
 
 def run():
-    dt = 0.001
-    pause = 0.001
+    dt = 0.0001
+    pause = 0.01
     plot_frequency = 10
-    num_steps = 500
+    num_steps = 5000
     seed = 0
 
     particles = init_particles(jax.random.PRNGKey(seed), max_num_particles=32)
     visualizer = Visualizer()
     update_particles = make_update_particles(dt, plot_frequency)
-    for step in range(num_steps):
+    for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
         particles = update_particles(particles)
         fps = plot_frequency / (time.perf_counter() - t_0)
         visualizer.update_fig(particles, step * plot_frequency, fps, pause=pause)
+        print(particles.type.mean(), jnp.where(particles.alive, particles.type, 0).mean())
 
 
 if __name__ == "__main__":
