@@ -80,18 +80,16 @@ def resolve_collisions(positions, velocities, masses, radii):
 
 def resolve_boundary_collisions(positions, velocities, radii):
     velocities = velocities.at[:, 0].set(
-        jnp.where(
-            (positions[:, 0] - radii <= 0) | (positions[:, 0] + radii >= 1),
-            -velocities[:, 0],
-            velocities[:, 0],
-        )
+        jnp.where(positions[:, 0] - radii <= 0, jnp.abs(velocities[:, 0]), velocities[:, 0])
+    )
+    velocities = velocities.at[:, 0].set(
+        jnp.where(positions[:, 0] + radii >= 1, -jnp.abs(velocities[:, 0]), velocities[:, 0])
     )
     velocities = velocities.at[:, 1].set(
-        jnp.where(
-            (positions[:, 1] - radii <= 0) | (positions[:, 1] + radii >= 1),
-            -velocities[:, 1],
-            velocities[:, 1],
-        )
+        jnp.where(positions[:, 1] - radii <= 0, jnp.abs(velocities[:, 1]), velocities[:, 1])
+    )
+    velocities = velocities.at[:, 1].set(
+        jnp.where(positions[:, 1] + radii >= 1, -jnp.abs(velocities[:, 1]), velocities[:, 1])
     )
     return velocities
 
@@ -109,8 +107,9 @@ def update_particles(positions, velocities, masses, radii, dt):
 def run():
     num_particles = 20
     mass = 1e3
-    dt = 0.01
-    num_steps = 100
+    dt = 0.001
+    pause = 0.01
+    num_steps = 500
     seed = 0
 
     positions, velocities, masses, radii = init_particles(num_particles, jax.random.PRNGKey(seed), mass=mass)
@@ -120,7 +119,7 @@ def run():
         t_0 = time.perf_counter()
         positions, velocities = update_particles(positions, velocities, masses, radii, dt)
         fps = 1 / (time.perf_counter() - t_0)
-        visualizer.update_fig(positions, radii, step, fps)
+        visualizer.update_fig(positions, radii, step, fps, pause=pause)
 
 
 if __name__ == "__main__":
