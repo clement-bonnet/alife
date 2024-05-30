@@ -59,10 +59,10 @@ def make_update_particles(dt: float, num_updates: int) -> Callable[[Particle], P
 
 
 def run():
-    dt = 0.0001
-    pause = 0.01
-    plot_frequency = 10
-    num_steps = 5000
+    dt = 0.00001
+    pause = 0.005
+    plot_frequency = 2000
+    num_steps = 5000000
     seed = 0
 
     particles = init_particles(jax.random.PRNGKey(seed), max_num_particles=32)
@@ -73,7 +73,6 @@ def run():
         particles = update_particles(particles)
         fps = plot_frequency / (time.perf_counter() - t_0)
         visualizer.update_fig(particles, step * plot_frequency, fps, pause=pause)
-        print(particles.type.mean(), jnp.where(particles.alive, particles.type, 0).mean())
 
 
 if __name__ == "__main__":
