@@ -3,6 +3,9 @@ from typing import Tuple, Callable
 
 import jax.numpy as jnp
 import jax
+
+jax.config.update("jax_platform_name", "cpu")
+
 import chex
 
 from alife.multi.visualizer import Visualizer
@@ -16,7 +19,7 @@ def init_particles(
     max_num_particles: int = 128,
     p_particles: float = 0.8,
     padding: float = 0.1,
-    speed_scaling: float = 10.0,
+    speed_scaling: float = 8.0,
 ) -> Particle:
     positions_key, velocities_key, alive_key = jax.random.split(key, 3)
     positions = jax.random.uniform(
@@ -60,17 +63,18 @@ def make_update_particles(dt: float, num_updates: int) -> Callable[[Particle], P
 
 def run():
     dt = 0.00001
-    pause = 0.005
-    plot_frequency = 2000
-    num_steps = 5000000
+    pause = 0.01
+    plot_frequency = 500
+    num_steps = 2_000_000
     seed = 0
 
-    particles = init_particles(jax.random.PRNGKey(seed), max_num_particles=32)
+    particles = init_particles(jax.random.PRNGKey(seed), max_num_particles=32, p_particles=1.0)
     visualizer = Visualizer()
     update_particles = make_update_particles(dt, plot_frequency)
+    print(particles.xy.devices())
     for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
-        particles = update_particles(particles)
+        particles = jax.block_until_ready(update_particles(particles))
         fps = plot_frequency / (time.perf_counter() - t_0)
         visualizer.update_fig(particles, step * plot_frequency, fps, pause=pause)
 

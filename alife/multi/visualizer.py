@@ -13,6 +13,7 @@ class Visualizer:
         self.fig = plt.figure(figsize=(8, 8))
         self.ax = plt.gca()
         self.colors = ["blue", "green", "red"]
+        self.cpu = jax.devices("cpu")[0]
 
     @partial(jax.jit, static_argnums=0)
     def total_kinetic_energy(self, particles: Particle) -> float:
@@ -20,6 +21,7 @@ class Visualizer:
         return 0.5 * jnp.sum(masses * jnp.sum(particles.v**2, axis=-1))
 
     def update_fig(self, particles: Particle, step, fps, pause: float = 0.1):
+        particles = jax.device_put(particles, self.cpu)
         self.ax.clear()
         plt.axis("off")
         plt.xlim(-1, 1)
@@ -33,16 +35,16 @@ class Visualizer:
             )
             plt.gca().add_patch(circle)
         plt.text(
-            0.9,
+            0.86,
             1.03,
-            f"FPS: {fps:.0f}",
+            f"FPS: {fps:.2e}",
             horizontalalignment="center",
             verticalalignment="center",
         )
         plt.text(
-            0.7,
+            0.68,
             1.08,
-            f"Total kinetic energy: {self.total_kinetic_energy(particles):.2f}",
+            f"Total kinetic energy: {self.total_kinetic_energy(particles):.2e}",
             horizontalalignment="center",
             verticalalignment="center",
         )
