@@ -29,7 +29,7 @@ def repulsion_force(particle: Particle, radius: float, num_radii_characteristic:
 
 
 def n_e_force(nuclei: Particle, electrons: Particle) -> tuple[jax.Array, jax.Array]:
-    coeff = 5000.0
+    coeff = 50.0
     differences = nuclei.xy[None, :] - electrons.xy[:, None]
     distances = jnp.sqrt(jnp.sum(differences**2, axis=-1))
     normed_differences = differences / (distances[:, :, None] + 1e-6)
@@ -53,7 +53,7 @@ def n_e_force(nuclei: Particle, electrons: Particle) -> tuple[jax.Array, jax.Arr
 
 def friction(particles: Particle) -> jax.Array:
     """Friction force is proportional to the squared speed of the particle."""
-    friction_coefficient = 0.1
+    friction_coefficient = 0.05
     forces = -friction_coefficient * particles.v * jnp.linalg.norm(particles.v, axis=-1, keepdims=True)
     forces = jnp.where(particles.alive[:, None], forces, 0)
     return forces

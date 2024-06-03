@@ -83,16 +83,16 @@ def make_update_particles(
 def run():
     dt = 0.00001
     pause = 0.01
-    plot_frequency = 100
-    num_steps = 1_000_000
+    plot_frequency = 3000
+    num_steps = 10_000_000
     seed = 0
 
     nuclei, electrons = init_particles(
         jax.random.PRNGKey(seed),
-        num_nuclei=4,
-        num_electrons=32,
-        nuclei_speed_scaling=18.0,
-        electron_speed_scaling=8.0,
+        num_nuclei=8,
+        num_electrons=64,
+        nuclei_speed_scaling=1.0,
+        electron_speed_scaling=1.0,
     )
     visualizer = Visualizer()
     update_particles = make_update_particles(dt, plot_frequency)
