@@ -53,7 +53,7 @@ def init_particles(
 
 
 def make_update_particles(
-    dt: float, num_updates: int
+    dt: float, num_updates: int, min_grid_size: float = -1.0, max_grid_size: float = 1.0
 ) -> Callable[[Particle, Particle], tuple[Particle, Particle]]:
     def update_particles_once(nuclei: Particle, electrons: Particle) -> Tuple[Particle, Particle]:
         f_nuclei, f_electrons = compute_forces(nuclei, electrons)
@@ -61,7 +61,7 @@ def make_update_particles(
         a_nuclei, a_electrons = f_nuclei / m_nuclei, f_electrons / m_electrons
         v_nuclei, v_electrons = nuclei.v + dt * a_nuclei, electrons.v + dt * a_electrons
         v_nuclei, v_electrons = compute_elastic_collision_boundaries(
-            v_nuclei, v_electrons, nuclei.xy, electrons.xy
+            v_nuclei, v_electrons, nuclei.xy, electrons.xy, min_grid_size, max_grid_size
         )
         # Integration step
         xy_nuclei, xy_electrons = nuclei.xy + dt * v_nuclei, electrons.xy + dt * v_electrons
@@ -108,7 +108,7 @@ def run():
         max_grid_size=grid_size[1],
     )
     visualizer = Visualizer(*grid_size)
-    update_particles = make_update_particles(dt, plot_frequency)
+    update_particles = make_update_particles(dt, plot_frequency, *grid_size)
     print("Device:", nuclei.xy.devices())
     for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
