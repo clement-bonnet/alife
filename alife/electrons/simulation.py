@@ -83,7 +83,7 @@ def make_update_particles(
 def run():
     dt = 0.00001
     pause = 0.01
-    plot_frequency = 1000
+    plot_frequency = 100
     num_steps = 1_000_000
     seed = 0
 

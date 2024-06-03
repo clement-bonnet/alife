@@ -35,11 +35,13 @@ def n_e_force(nuclei: Particle, electrons: Particle) -> tuple[jax.Array, jax.Arr
     normed_differences = differences / (distances[:, :, None] + 1e-6)
     radius_sum = P_CHARACHTERISTICS.radius.sum()
     characteristic_distance = distances / (0.5 * radius_sum)
-    # Energy potential: 1/((x/0.5)^6 + 1/10) + 1*exp(-(x-2)^2/0.5^2)
+    # Energy potential: 1/((x/0.8)^6 + 1/10) - 5*exp(-(x-1)^2/0.3^2) + 4*exp(-(x-1.5)^2/0.3^2)
     x = characteristic_distance[:, :, None]
+    # -89 e^(-11 (-1.5 + x)^2) (-1.5 + x) + 111 e^(-11 (-1 + x)^2) (-1 + x) - (1.57 x^5)/(0.03 + x^6)^2
     forces_p_to_p = (
-        coeff * normed_differences * -8 * jnp.exp(-4 * (-2 + x) ** 2) * (-2 + x)
-        - (0.09375 * x**5) / (0.0015625 + x**6) ** 2
+        coeff * normed_differences * -89 * jnp.exp(-11 * (-1.5 + x) ** 2) * (-1.5 + x)
+        + 111 * jnp.exp(-11 * (-1 + x) ** 2) * (-1 + x)
+        - (1.57 * x**5) / (0.03 + x**6) ** 2
     )
     forces_p_to_p = jnp.where(
         (nuclei.alive[None, :] & electrons.alive[:, None])[:, :, None], forces_p_to_p, 0
@@ -51,7 +53,7 @@ def n_e_force(nuclei: Particle, electrons: Particle) -> tuple[jax.Array, jax.Arr
 
 def friction(particles: Particle) -> jax.Array:
     """Friction force is proportional to the squared speed of the particle."""
-    friction_coefficient = 0.01
+    friction_coefficient = 0.1
     forces = -friction_coefficient * particles.v * jnp.linalg.norm(particles.v, axis=-1, keepdims=True)
     forces = jnp.where(particles.alive[:, None], forces, 0)
     return forces
