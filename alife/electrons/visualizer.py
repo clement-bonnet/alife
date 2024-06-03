@@ -8,7 +8,9 @@ from alife.electrons.particles import Particle, P_CHARACHTERISTICS
 
 
 class Visualizer:
-    def __init__(self):
+    def __init__(self, min_grid_size: float = -1.0, max_grid_size: float = 1.0):
+        self.min_grid_size = min_grid_size
+        self.max_grid_size = max_grid_size
         # Setup plot
         self.fig = plt.figure(figsize=(8, 8))
         self.ax = plt.gca()
@@ -29,9 +31,25 @@ class Visualizer:
         nuclei, electrons = jax.device_put((nuclei, electrons), self.cpu)
         self.ax.clear()
         plt.axis("off")
-        plt.xlim(-1, 1)
-        plt.ylim(-1, 1)
-        plt.plot([-1, 1, 1, -1, -1], [-1, -1, 1, 1, -1], color="black")
+        plt.xlim(self.min_grid_size, self.max_grid_size)
+        plt.ylim(self.min_grid_size, self.max_grid_size)
+        plt.plot(
+            [
+                self.min_grid_size,
+                self.max_grid_size,
+                self.max_grid_size,
+                self.min_grid_size,
+                self.min_grid_size,
+            ],
+            [
+                self.min_grid_size,
+                self.min_grid_size,
+                self.max_grid_size,
+                self.max_grid_size,
+                self.min_grid_size,
+            ],
+            color="black",
+        )
         for particles, radius, color in zip(
             [nuclei, electrons], [self.radius_nuclei, self.radius_electrons], self.colors
         ):
@@ -41,15 +59,15 @@ class Visualizer:
                 circle = plt.Circle(xy, radius, color=color, fill=True, alpha=0.7)
                 plt.gca().add_patch(circle)
         plt.text(
-            0.86,
-            1.03,
+            0.86 * self.max_grid_size,
+            1.03 * self.max_grid_size,
             f"FPS: {fps:.2e}",
             horizontalalignment="center",
             verticalalignment="center",
         )
         plt.text(
-            0.68,
-            1.08,
+            0.68 * self.max_grid_size,
+            1.08 * self.max_grid_size,
             f"Total kinetic energy: {self.total_kinetic_energy(nuclei, electrons):.2e}",
             horizontalalignment="center",
             verticalalignment="center",

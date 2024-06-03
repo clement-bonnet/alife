@@ -21,11 +21,18 @@ def init_particles(
     nuclei_speed_scaling: float = 8.0,
     electron_speed_scaling: float = 8.0,
     padding: float = 0.1,
+    min_grid_size: float = -1.0,
+    max_grid_size: float = 1.0,
 ) -> tuple[Particle, Particle]:
     nuclei_key, electrons_key = jax.random.split(key)
     nuclei_positions_key, nuclei_velocities_key = jax.random.split(nuclei_key)
     nuclei = Particle(
-        xy=jax.random.uniform(nuclei_positions_key, (num_nuclei, 2), minval=-1 + padding, maxval=1 - padding),
+        xy=jax.random.uniform(
+            nuclei_positions_key,
+            (num_nuclei, 2),
+            minval=min_grid_size + padding,
+            maxval=max_grid_size - padding,
+        ),
         v=nuclei_speed_scaling * jax.random.normal(nuclei_velocities_key, (num_nuclei, 2)),
         type=jnp.zeros(num_nuclei, dtype=jnp.uint8),
         alive=jnp.ones(num_nuclei, dtype=bool),
@@ -33,7 +40,10 @@ def init_particles(
     elec_positions_key, elec_velocities_key = jax.random.split(electrons_key)
     electrons = Particle(
         xy=jax.random.uniform(
-            elec_positions_key, (num_electrons, 2), minval=-1 + padding, maxval=1 - padding
+            elec_positions_key,
+            (num_electrons, 2),
+            minval=min_grid_size + padding,
+            maxval=max_grid_size - padding,
         ),
         v=electron_speed_scaling * jax.random.normal(elec_velocities_key, (num_electrons, 2)),
         type=jnp.ones(num_electrons, dtype=jnp.uint8),
@@ -85,6 +95,7 @@ def run():
     pause = 0.01
     plot_frequency = 3000
     num_steps = 10_000_000
+    grid_size = [-1.0, 1.0]
     seed = 0
 
     nuclei, electrons = init_particles(
@@ -93,8 +104,10 @@ def run():
         num_electrons=64,
         nuclei_speed_scaling=1.0,
         electron_speed_scaling=1.0,
+        min_grid_size=grid_size[0],
+        max_grid_size=grid_size[1],
     )
-    visualizer = Visualizer()
+    visualizer = Visualizer(*grid_size)
     update_particles = make_update_particles(dt, plot_frequency)
     print("Device:", nuclei.xy.devices())
     for step in range(num_steps // plot_frequency):
