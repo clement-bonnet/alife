@@ -8,9 +8,17 @@ from alife.electrons.particles import Particle, P_CHARACHTERISTICS
 
 
 class Visualizer:
-    def __init__(self, min_grid_size: float = -1.0, max_grid_size: float = 1.0):
+    def __init__(
+        self,
+        min_grid_size: float = -1.0,
+        max_grid_size: float = 1.0,
+        wall: bool = False,
+        wall_gap_size: float = 0.1,
+    ):
         self.min_grid_size = min_grid_size
         self.max_grid_size = max_grid_size
+        self.wall = wall
+        self.wall_gap_size = wall_gap_size
         # Setup plot
         self.fig = plt.figure(figsize=(8, 8))
         self.ax = plt.gca()
@@ -50,6 +58,19 @@ class Visualizer:
             ],
             color="black",
         )
+        if self.wall:
+            # plot horizontal wall at y = 0 with a small gap
+            plt.plot(
+                [self.min_grid_size, -self.wall_gap_size / 2],
+                [0, 0],
+                color="black",
+            )
+            plt.plot(
+                [self.wall_gap_size / 2, self.max_grid_size],
+                [0, 0],
+                color="black",
+            )
+
         for particles, radius, color in zip(
             [nuclei, electrons], [self.radius_nuclei, self.radius_electrons], self.colors
         ):

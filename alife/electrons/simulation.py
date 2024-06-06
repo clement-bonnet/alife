@@ -11,7 +11,10 @@ import chex
 from alife.electrons.visualizer import Visualizer
 from alife.electrons.particles import Particle, P_CHARACHTERISTICS
 from alife.electrons.forces import compute_forces
-from alife.electrons.elastic_collision import compute_elastic_collision_boundaries
+from alife.electrons.elastic_collision import (
+    compute_elastic_collision_boundaries,
+    compute_elastic_collision_wall,
+)
 
 
 def init_particles(
@@ -53,7 +56,12 @@ def init_particles(
 
 
 def make_update_particles(
-    dt: float, num_updates: int, min_grid_size: float = -1.0, max_grid_size: float = 1.0
+    dt: float,
+    num_updates: int,
+    min_grid_size: float = -1.0,
+    max_grid_size: float = 1.0,
+    wall: bool = False,
+    wall_gap_size: float = 0.5,
 ) -> Callable[[Particle, Particle], tuple[Particle, Particle]]:
     def update_particles_once(nuclei: Particle, electrons: Particle) -> Tuple[Particle, Particle]:
         f_nuclei, f_electrons = compute_forces(nuclei, electrons)
@@ -63,6 +71,11 @@ def make_update_particles(
         v_nuclei, v_electrons = compute_elastic_collision_boundaries(
             v_nuclei, v_electrons, nuclei.xy, electrons.xy, min_grid_size, max_grid_size
         )
+        if wall:
+            v_nuclei, v_electrons = compute_elastic_collision_wall(
+                v_nuclei, v_electrons, nuclei.xy, electrons.xy, wall_gap_size
+            )
+
         # Integration step
         xy_nuclei, xy_electrons = nuclei.xy + dt * v_nuclei, electrons.xy + dt * v_electrons
         nuclei = Particle(
@@ -96,6 +109,8 @@ def run():
     plot_frequency = 10000
     num_steps = 2_000_000
     grid_size = [-3.0, 3.0]
+    wall = True
+    wall_gap_size = 1.0
     seed = 0
 
     nuclei, electrons = init_particles(
@@ -107,8 +122,10 @@ def run():
         min_grid_size=grid_size[0],
         max_grid_size=grid_size[1],
     )
-    visualizer = Visualizer(*grid_size)
-    update_particles = make_update_particles(dt, plot_frequency, *grid_size)
+    visualizer = Visualizer(*grid_size, wall=True, wall_gap_size=wall_gap_size)
+    update_particles = make_update_particles(
+        dt, plot_frequency, *grid_size, wall=wall, wall_gap_size=wall_gap_size
+    )
     print("Device:", nuclei.xy.devices())
     for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
@@ -120,6 +137,5 @@ def run():
 if __name__ == "__main__":
     run()
     # TODO: improve visualization speed
-    # TODO: add energy source
-    # TODO: make useful environment
+    # TODO: add moving energy source
     # TODO: create a new project with 1 type of particles with a "genome" behavior that describes the interaction forces
