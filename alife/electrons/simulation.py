@@ -91,17 +91,17 @@ def make_update_particles(
 
 
 def run():
-    dt = 0.00001
-    pause = 0.01
-    plot_frequency = 3000
-    num_steps = 10_000_000
-    grid_size = [-1.0, 1.0]
+    dt = 0.0001
+    pause = 0.1
+    plot_frequency = 10000
+    num_steps = 2_000_000
+    grid_size = [-3.0, 3.0]
     seed = 0
 
     nuclei, electrons = init_particles(
         jax.random.PRNGKey(seed),
-        num_nuclei=8,
-        num_electrons=64,
+        num_nuclei=16,
+        num_electrons=128,
         nuclei_speed_scaling=1.0,
         electron_speed_scaling=1.0,
         min_grid_size=grid_size[0],
@@ -119,3 +119,7 @@ def run():
 
 if __name__ == "__main__":
     run()
+    # TODO: improve visualization speed
+    # TODO: add energy source
+    # TODO: make useful environment
+    # TODO: create a new project with 1 type of particles with a "genome" behavior that describes the interaction forces
