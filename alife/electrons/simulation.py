@@ -10,7 +10,7 @@ import chex
 
 from alife.electrons.visualizer import Visualizer
 from alife.electrons.particles import Particle, P_CHARACHTERISTICS
-from alife.electrons.forces import compute_forces
+from alife.electrons.forces import compute_forces, particles_capture_energy
 from alife.electrons.elastic_collision import (
     compute_elastic_collision_boundaries,
     compute_elastic_collision_wall,
@@ -26,7 +26,7 @@ def init_particles(
     padding: float = 0.1,
     min_grid_size: float = -1.0,
     max_grid_size: float = 1.0,
-) -> tuple[Particle, Particle]:
+) -> tuple[Particle, Particle, tuple[float, float]]:
     nuclei_key, electrons_key = jax.random.split(key)
     nuclei_positions_key, nuclei_velocities_key = jax.random.split(nuclei_key)
     nuclei = Particle(
@@ -52,7 +52,8 @@ def init_particles(
         type=jnp.ones(num_electrons, dtype=jnp.uint8),
         alive=jnp.ones(num_electrons, dtype=bool),
     )
-    return nuclei, electrons
+    energy_source = (min_grid_size, 1.0)
+    return nuclei, electrons, energy_source
 
 
 def make_update_particles(
@@ -62,8 +63,14 @@ def make_update_particles(
     max_grid_size: float = 1.0,
     wall: bool = False,
     wall_gap_size: float = 0.5,
-) -> Callable[[Particle, Particle], tuple[Particle, Particle]]:
-    def update_particles_once(nuclei: Particle, electrons: Particle) -> Tuple[Particle, Particle]:
+    energy_source_bool: bool = False,
+    energy_coeff: float = 0.1,
+    energy_source_speed: float = 0.1,
+    energy_source_size: float = 0.5,
+) -> Callable[[Particle, Particle, float], tuple[Particle, Particle, float]]:
+    def update_particles_once(
+        nuclei: Particle, electrons: Particle, energy_source: tuple[float, float]
+    ) -> Tuple[Particle, Particle, tuple[float, float]]:
         f_nuclei, f_electrons = compute_forces(nuclei, electrons)
         m_nuclei, m_electrons = P_CHARACHTERISTICS.mass
         a_nuclei, a_electrons = f_nuclei / m_nuclei, f_electrons / m_electrons
@@ -74,6 +81,25 @@ def make_update_particles(
         if wall:
             v_nuclei, v_electrons = compute_elastic_collision_wall(
                 v_nuclei, v_electrons, nuclei.xy, electrons.xy, wall_gap_size
+            )
+        if energy_source_bool:
+            nrg_y, nrg_v_sign = energy_source
+            nrg_v_sign = jnp.where(
+                (nrg_y + energy_source_size > max_grid_size) | (nrg_y < min_grid_size),
+                -nrg_v_sign,
+                nrg_v_sign,
+            )
+            nrg_y += dt * nrg_v_sign * energy_source_speed
+            # Add energy to the particles
+            v_nuclei, v_electrons = particles_capture_energy(
+                nuclei.xy,
+                electrons.xy,
+                v_nuclei,
+                v_electrons,
+                min_grid_size,
+                energy_source_size,
+                energy_coeff,
+                nrg_y,
             )
 
         # Integration step
@@ -90,12 +116,14 @@ def make_update_particles(
             type=electrons.type,
             alive=electrons.alive,
         )
-        return nuclei, electrons
+        return nuclei, electrons, (nrg_y, nrg_v_sign)
 
-    def update_particles(nuclei: Particle, electrons: Particle) -> tuple[Particle, Particle]:
+    def update_particles(
+        nuclei: Particle, electrons: Particle, energy_source: tuple[float, float]
+    ) -> tuple[Particle, Particle, tuple[float, float]]:
         return jax.lax.scan(
             lambda args, _: (update_particles_once(*args), None),
-            (nuclei, electrons),
+            (nuclei, electrons, energy_source),
             None,
             length=num_updates,
         )[0]
@@ -106,36 +134,49 @@ def make_update_particles(
 def run():
     dt = 0.0001
     pause = 0.1
-    plot_frequency = 10000
-    num_steps = 2_000_000
+    plot_frequency = 5000
+    num_steps = 20_000_000
     grid_size = [-3.0, 3.0]
     wall = True
     wall_gap_size = 1.0
+    energy_source_bool = True
+    energy_coeff = 0.005
+    energy_source_speed = 0.02
+    energy_source_size = 1.0
     seed = 0
 
-    nuclei, electrons = init_particles(
+    nuclei, electrons, energy_source = init_particles(
         jax.random.PRNGKey(seed),
-        num_nuclei=16,
+        num_nuclei=24,
         num_electrons=128,
         nuclei_speed_scaling=1.0,
         electron_speed_scaling=1.0,
         min_grid_size=grid_size[0],
         max_grid_size=grid_size[1],
     )
-    visualizer = Visualizer(*grid_size, wall=True, wall_gap_size=wall_gap_size)
+    visualizer = Visualizer(*grid_size, wall, wall_gap_size, energy_source_bool, energy_source_size)
     update_particles = make_update_particles(
-        dt, plot_frequency, *grid_size, wall=wall, wall_gap_size=wall_gap_size
+        dt,
+        plot_frequency,
+        *grid_size,
+        wall,
+        wall_gap_size,
+        energy_source_bool,
+        energy_coeff,
+        energy_source_speed,
+        energy_source_size,
     )
     print("Device:", nuclei.xy.devices())
     for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
-        nuclei, electrons = jax.block_until_ready(update_particles(nuclei, electrons))
+        nuclei, electrons, energy_source = jax.block_until_ready(
+            update_particles(nuclei, electrons, energy_source)
+        )
         fps = plot_frequency / (time.perf_counter() - t_0)
-        visualizer.update_fig(nuclei, electrons, step * plot_frequency, fps, pause=pause)
+        visualizer.update_fig(nuclei, electrons, energy_source, step * plot_frequency, fps, pause=pause)
 
 
 if __name__ == "__main__":
     run()
     # TODO: improve visualization speed
-    # TODO: add moving energy source
     # TODO: create a new project with 1 type of particles with a "genome" behavior that describes the interaction forces

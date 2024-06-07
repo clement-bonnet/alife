@@ -57,3 +57,44 @@ def friction(particles: Particle) -> jax.Array:
     forces = -friction_coefficient * particles.v * jnp.linalg.norm(particles.v, axis=-1, keepdims=True)
     forces = jnp.where(particles.alive[:, None], forces, 0)
     return forces
+
+
+def increase_velocities(velocities: jax.Array, mass: float, energy: float) -> jax.Array:
+    speed = jnp.sqrt(jnp.sum(velocities**2, axis=-1, keepdims=True))
+    velocities_normalized = velocities / (speed + 1e-6)
+    # v2**2 = v1**2 + 2*energy/mass
+    return velocities_normalized * jnp.sqrt(speed**2 + 2 * energy / mass)
+
+
+def particles_capture_energy(
+    xy_nuclei: jax.Array,
+    xy_electrons: Particle,
+    v_nuclei: jax.Array,
+    v_electrons: jax.Array,
+    min_grid_size: float,
+    energy_source_size: float,
+    energy_coeff: float,
+    nrg_y: float,
+) -> tuple[jax.Array, jax.Array]:
+    m_nuclei, m_electrons = P_CHARACHTERISTICS.mass
+    v_nuclei = jnp.where(
+        jnp.expand_dims(
+            (xy_nuclei[:, 0] <= min_grid_size + energy_source_size)
+            & (xy_nuclei[:, 1] >= nrg_y)
+            & (xy_nuclei[:, 1] <= nrg_y + energy_source_size),
+            axis=1,
+        ),
+        increase_velocities(v_nuclei, m_nuclei, energy_coeff),
+        v_nuclei,
+    )
+    v_electrons = jnp.where(
+        jnp.expand_dims(
+            (xy_electrons[:, 0] <= min_grid_size + energy_source_size)
+            & (xy_electrons[:, 1] >= nrg_y)
+            & (xy_electrons[:, 1] <= nrg_y + energy_source_size),
+            axis=1,
+        ),
+        increase_velocities(v_electrons, m_electrons, energy_coeff),
+        v_electrons,
+    )
+    return v_nuclei, v_electrons

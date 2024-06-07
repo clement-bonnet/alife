@@ -14,11 +14,15 @@ class Visualizer:
         max_grid_size: float = 1.0,
         wall: bool = False,
         wall_gap_size: float = 0.1,
+        energy_source_bool: bool = False,
+        energy_source_size: bool = 0.5,
     ):
         self.min_grid_size = min_grid_size
         self.max_grid_size = max_grid_size
         self.wall = wall
         self.wall_gap_size = wall_gap_size
+        self.energy_source_bool = energy_source_bool
+        self.energy_source_size = energy_source_size
         # Setup plot
         self.fig = plt.figure(figsize=(8, 8))
         self.ax = plt.gca()
@@ -35,8 +39,8 @@ class Visualizer:
         )
         return energy_nuclei + energy_electrons
 
-    def update_fig(self, nuclei: Particle, electrons: Particle, step, fps, pause: float = 0.1):
-        nuclei, electrons = jax.device_put((nuclei, electrons), self.cpu)
+    def update_fig(self, nuclei: Particle, electrons: Particle, energy_source, step, fps, pause: float = 0.1):
+        nuclei, electrons, energy_source = jax.device_put((nuclei, electrons, energy_source), self.cpu)
         self.ax.clear()
         plt.axis("off")
         plt.xlim(self.min_grid_size, self.max_grid_size)
@@ -70,6 +74,16 @@ class Visualizer:
                 [0, 0],
                 color="black",
             )
+        if self.energy_source_bool:
+            nrg_y, _ = energy_source
+            rectangle = plt.Rectangle(
+                (self.min_grid_size, nrg_y),
+                self.energy_source_size,
+                self.energy_source_size,
+                color="red",
+                alpha=0.2,
+            )
+            plt.gca().add_patch(rectangle)
 
         for particles, radius, color in zip(
             [nuclei, electrons], [self.radius_nuclei, self.radius_electrons], self.colors
