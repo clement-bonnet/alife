@@ -4,7 +4,7 @@ from typing import Tuple, Callable
 import jax.numpy as jnp
 import jax
 
-jax.config.update("jax_platform_name", "cpu")
+# jax.config.update("jax_platform_name", "cpu")
 
 import chex
 
@@ -24,6 +24,7 @@ def init_particles(
     padding: float = 0.1,
     min_grid_size: float = -1.0,
     max_grid_size: float = 1.0,
+    genome_length: int = 4,
 ) -> tuple[Particle, tuple[float, float]]:
     positions_key, velocities_key, genome_key = jax.random.split(key, 3)
     particles = Particle(
@@ -34,7 +35,7 @@ def init_particles(
             maxval=max_grid_size - padding,
         ),
         v=speed_scaling * jax.random.normal(velocities_key, (num_particles, 2)),
-        genome=jax.random.bernoulli(genome_key, 0.5, (num_particles,)),
+        genome=jax.random.bernoulli(genome_key, 0.5, (num_particles, genome_length)),
         alive=jnp.ones(num_particles, dtype=bool),
     )
     energy_source = (min_grid_size, 1.0)
@@ -44,6 +45,7 @@ def init_particles(
 def make_update_particles(
     dt: float,
     num_updates: int,
+    force_weights: jax.Array,
     min_grid_size: float = -1.0,
     max_grid_size: float = 1.0,
     wall: bool = False,
@@ -56,7 +58,7 @@ def make_update_particles(
     def update_particles_once(
         particles: Particle, energy_source: tuple[float, float]
     ) -> Tuple[Particle, tuple[float, float]]:
-        f_particles = compute_forces(particles)
+        f_particles = compute_forces(particles, force_weights)
         a_particles = f_particles / P_CHARACHTERISTICS.mass
         v_particles = particles.v + dt * a_particles
         v_particles = compute_elastic_collision_boundaries(
@@ -81,6 +83,7 @@ def make_update_particles(
                 energy_coeff,
                 nrg_y,
             )
+            energy_source = (nrg_y, nrg_v_sign)
 
         # Integration step
         xy_particles = particles.xy + dt * v_particles
@@ -90,7 +93,7 @@ def make_update_particles(
             genome=particles.genome,
             alive=particles.alive,
         )
-        return particles, (nrg_y, nrg_v_sign)
+        return particles, energy_source
 
     def update_particles(
         particles: Particle, energy_source: tuple[float, float]
@@ -108,28 +111,37 @@ def make_update_particles(
 def run():
     dt = 0.0001
     pause = 0.1
-    plot_frequency = 500
+    plot_frequency = 200
     num_steps = 2_000_000
     grid_size = [-3.0, 3.0]
     wall = True
     wall_gap_size = 1.0
-    energy_source_bool = True
-    energy_coeff = 0.001
+    energy_source_bool = False
+    energy_coeff = 0.0005
     energy_source_speed = 0.05
     energy_source_size = 1.0
+    num_particles = 1024
+    genome_length = 8
+    num_coefficients_forces = 8
     seed = 0
 
+    key_particles, key_forces = jax.random.split(jax.random.PRNGKey(seed))
     particles, energy_source = init_particles(
-        jax.random.PRNGKey(seed),
-        num_particles=8,
+        key_particles,
+        num_particles=num_particles,
         speed_scaling=1.0,
         min_grid_size=grid_size[0],
         max_grid_size=grid_size[1],
+        genome_length=genome_length,
     )
     visualizer = Visualizer(*grid_size, wall, wall_gap_size, energy_source_bool, energy_source_size)
+
+    scales = 1 / 10 ** (jnp.arange(num_coefficients_forces) / 2)
+    W = scales[None, :] * jax.random.normal(key_forces, (genome_length, num_coefficients_forces))
     update_particles = make_update_particles(
         dt,
         plot_frequency,
+        W,
         *grid_size,
         wall,
         wall_gap_size,

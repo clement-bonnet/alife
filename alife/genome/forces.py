@@ -4,30 +4,30 @@ import jax.numpy as jnp
 from alife.genome.particles import Particle, P_CHARACHTERISTICS
 
 
-def compute_forces(particles: Particle) -> tuple[jax.Array, jax.Array]:
-    f_particles = p2p_force(particles)
+def compute_forces(particles: Particle, weights: jax.Array) -> jax.Array:
+    f_particles = p2p_force(particles, weights)
     f_particles += friction(particles)
     return f_particles
 
 
-def p2p_force(particles: Particle) -> jax.Array:
-    # TODO: implement the genome-specific forces
-    coeff = 50.0
+def p2p_force(particles: Particle, weights: jax.Array) -> jax.Array:
+    def force_distance(distance, force_weights, genome):
+        coeffs = jnp.dot(force_weights.T, genome)
+        force = jnp.dot(jnp.stack([distance**i for i in range(force_weights.shape[-1])], axis=-1), coeffs)
+        force *= jnp.exp(-1.3 * distance)
+        return force
+
     differences = particles.xy[None, :] - particles.xy[:, None]
     distances = jnp.sqrt(jnp.sum(differences**2, axis=-1))
-    normed_differences = differences / (distances[:, :, None] + 1e-6)
+    force_direction = differences / (distances[:, :, None] + 1e-6)
     radius_sum = 2 * P_CHARACHTERISTICS.radius
-    characteristic_distance = distances / (0.5 * radius_sum)
-    # Energy potential: 1/((x/0.8)^6 + 1/10) - 5*exp(-(x-1)^2/0.3^2) + 4*exp(-(x-1.5)^2/0.3^2)
-    x = characteristic_distance[:, :, None]
-    # -89 e^(-11 (-1.5 + x)^2) (-1.5 + x) + 111 e^(-11 (-1 + x)^2) (-1 + x) - (1.57 x^5)/(0.03 + x^6)^2
-    forces_p_to_p = (
-        coeff * normed_differences * -89 * jnp.exp(-11 * (-1.5 + x) ** 2) * (-1.5 + x)
-        + 111 * jnp.exp(-11 * (-1 + x) ** 2) * (-1 + x)
-        - (1.57 * x**5) / (0.03 + x**6) ** 2
+    characteristic_distance = distances[:, :, None] / radius_sum
+    interaction_strength = jax.vmap(force_distance, in_axes=(0, None, 0))(
+        characteristic_distance, weights, particles.genome
     )
+    forces_p_to_p = force_direction * interaction_strength
     forces_p_to_p = jnp.where(
-        (particles.alive[None, :] & particles.alive[:, None])[:, :, None], forces_p_to_p, 0
+        (particles.alive[None, :, None] & particles.alive[:, None, None]), forces_p_to_p, 0
     )
     particles_forces = jnp.sum(forces_p_to_p, axis=0)
     return particles_forces
