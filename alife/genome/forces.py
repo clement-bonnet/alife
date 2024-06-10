@@ -4,16 +4,21 @@ import jax.numpy as jnp
 from alife.genome.particles import Particle, P_CHARACHTERISTICS
 
 
-def compute_forces(particles: Particle, weights: jax.Array, friction_coefficient: float) -> jax.Array:
-    f_particles = p2p_force(particles, weights)
+def compute_forces(
+    particles: Particle, weights: jax.Array, friction_coefficient: float, force_scaling: float
+) -> jax.Array:
+    f_particles = p2p_force(particles, weights, force_scaling)
     f_particles += friction(particles, friction_coefficient)
     return f_particles
 
 
-def p2p_force(particles: Particle, weights: jax.Array) -> jax.Array:
-    def force_distance(distance, force_weights, genome):
-        coeffs = jnp.dot(force_weights.T, genome)
-        force = jnp.dot(jnp.stack([distance**i for i in range(force_weights.shape[-1])], axis=-1), coeffs)
+def p2p_force(particles: Particle, weights: jax.Array, force_scaling: float) -> jax.Array:
+    def force_distance(distance, force_weights, genomes):
+        p2p_genomes = genomes[None, :, :] & genomes[:, None, :]
+        coeffs = jnp.dot(p2p_genomes, force_weights)
+        force = jax.vmap(jax.vmap(jnp.dot))(
+            jnp.stack([distance**i for i in range(force_weights.shape[-1])], axis=-1), coeffs
+        )
         force *= jnp.exp(-1.3 * distance)
         return force
 
@@ -21,16 +26,14 @@ def p2p_force(particles: Particle, weights: jax.Array) -> jax.Array:
     distances = jnp.sqrt(jnp.sum(differences**2, axis=-1))
     force_direction = differences / (distances[:, :, None] + 1e-6)
     radius_sum = 2 * P_CHARACHTERISTICS.radius
-    characteristic_distance = distances[:, :, None] / radius_sum
-    interaction_strength = jax.vmap(force_distance, in_axes=(0, None, 0))(
-        characteristic_distance, weights, particles.genome
-    )
-    forces_p_to_p = force_direction * interaction_strength
+    characteristic_distance = distances / radius_sum
+    interaction_strength = force_distance(characteristic_distance, weights, particles.genome)
+    forces_p_to_p = force_direction * interaction_strength[:, :, None]
     forces_p_to_p = jnp.where(
         (particles.alive[None, :, None] & particles.alive[:, None, None]), forces_p_to_p, 0
     )
     particles_forces = jnp.sum(forces_p_to_p, axis=0)
-    return particles_forces
+    return force_scaling * particles_forces
 
 
 def friction(particles: Particle, friction_coefficient: float) -> jax.Array:

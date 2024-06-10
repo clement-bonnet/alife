@@ -55,11 +55,12 @@ def make_update_particles(
     energy_source_speed: float = 0.1,
     energy_source_size: float = 0.5,
     friction_coefficient: float = 0.05,
+    force_scaling: float = 10,
 ) -> Callable[[Particle, tuple[float, float]], tuple[Particle, tuple[float, float]]]:
     def update_particles_once(
         particles: Particle, energy_source: tuple[float, float]
     ) -> Tuple[Particle, tuple[float, float]]:
-        f_particles = compute_forces(particles, force_weights, friction_coefficient)
+        f_particles = compute_forces(particles, force_weights, friction_coefficient, force_scaling)
         a_particles = f_particles / P_CHARACHTERISTICS.mass
         v_particles = particles.v + dt * a_particles
         v_particles = compute_elastic_collision_boundaries(
@@ -110,10 +111,10 @@ def make_update_particles(
 
 
 def run():
-    dt = 0.0001
-    pause = 0.05
+    dt = 0.001
+    pause = 0.04
     plot_frequency = 500
-    num_steps = 2_000_000
+    num_steps = 20_000_000
     grid_size = [-3.0, 3.0]
     wall = True
     wall_gap_size = 1.0
@@ -121,7 +122,8 @@ def run():
     energy_coeff = 0.0005
     energy_source_speed = 0.05
     energy_source_size = 1.0
-    friction_coefficient = 0.05
+    friction_coefficient = 0.1
+    force_scaling = 10
     num_particles = 128
     genome_length = 8
     num_coefficients_forces = 8
@@ -152,11 +154,13 @@ def run():
         energy_source_speed,
         energy_source_size,
         friction_coefficient,
+        force_scaling,
     )
     print("Device:", particles.xy.devices())
     for step in range(num_steps // plot_frequency):
         t_0 = time.perf_counter()
-        particles, energy_source = jax.block_until_ready(update_particles(particles, energy_source))
+        # particles, energy_source = jax.block_until_ready(update_particles(particles, energy_source))
+        particles, energy_source = update_particles(particles, energy_source)
         fps = plot_frequency / (time.perf_counter() - t_0)
         visualizer.update_fig(particles, energy_source, step * plot_frequency, fps, pause=pause)
 
