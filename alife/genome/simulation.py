@@ -4,7 +4,7 @@ from typing import Tuple, Callable
 import jax.numpy as jnp
 import jax
 
-# jax.config.update("jax_platform_name", "cpu")
+jax.config.update("jax_platform_name", "cpu")
 
 import chex
 
@@ -54,11 +54,12 @@ def make_update_particles(
     energy_coeff: float = 0.1,
     energy_source_speed: float = 0.1,
     energy_source_size: float = 0.5,
+    friction_coefficient: float = 0.05,
 ) -> Callable[[Particle, tuple[float, float]], tuple[Particle, tuple[float, float]]]:
     def update_particles_once(
         particles: Particle, energy_source: tuple[float, float]
     ) -> Tuple[Particle, tuple[float, float]]:
-        f_particles = compute_forces(particles, force_weights)
+        f_particles = compute_forces(particles, force_weights, friction_coefficient)
         a_particles = f_particles / P_CHARACHTERISTICS.mass
         v_particles = particles.v + dt * a_particles
         v_particles = compute_elastic_collision_boundaries(
@@ -110,8 +111,8 @@ def make_update_particles(
 
 def run():
     dt = 0.0001
-    pause = 0.1
-    plot_frequency = 200
+    pause = 0.05
+    plot_frequency = 500
     num_steps = 2_000_000
     grid_size = [-3.0, 3.0]
     wall = True
@@ -120,7 +121,8 @@ def run():
     energy_coeff = 0.0005
     energy_source_speed = 0.05
     energy_source_size = 1.0
-    num_particles = 1024
+    friction_coefficient = 0.05
+    num_particles = 128
     genome_length = 8
     num_coefficients_forces = 8
     seed = 0
@@ -149,6 +151,7 @@ def run():
         energy_coeff,
         energy_source_speed,
         energy_source_size,
+        friction_coefficient,
     )
     print("Device:", particles.xy.devices())
     for step in range(num_steps // plot_frequency):

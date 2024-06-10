@@ -4,9 +4,9 @@ import jax.numpy as jnp
 from alife.genome.particles import Particle, P_CHARACHTERISTICS
 
 
-def compute_forces(particles: Particle, weights: jax.Array) -> jax.Array:
+def compute_forces(particles: Particle, weights: jax.Array, friction_coefficient: float) -> jax.Array:
     f_particles = p2p_force(particles, weights)
-    f_particles += friction(particles)
+    f_particles += friction(particles, friction_coefficient)
     return f_particles
 
 
@@ -33,9 +33,8 @@ def p2p_force(particles: Particle, weights: jax.Array) -> jax.Array:
     return particles_forces
 
 
-def friction(particles: Particle) -> jax.Array:
+def friction(particles: Particle, friction_coefficient: float) -> jax.Array:
     """Friction force is proportional to the squared speed of the particle."""
-    friction_coefficient = 0.05
     forces = -friction_coefficient * particles.v * jnp.linalg.norm(particles.v, axis=-1, keepdims=True)
     forces = jnp.where(particles.alive[:, None], forces, 0)
     return forces
