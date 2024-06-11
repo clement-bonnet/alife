@@ -178,5 +178,5 @@ def run():
 
 if __name__ == "__main__":
     run()
-    # TODO: improve visualization speed
+    # TODO: improve visualization speed (e.g. https://vispy.org/)
     # TODO: create a new project with 1 type of particles with a "genome" behavior that describes the interaction forces

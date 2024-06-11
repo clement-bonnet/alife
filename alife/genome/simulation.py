@@ -167,4 +167,5 @@ def run():
 
 if __name__ == "__main__":
     run()
-    # TODO: improve visualization speed
+    # TODO: improve visualization speed (e.g. https://vispy.org/)
+    # TODO: find a task, an environment in which the particles can automatically form intelligent structures
