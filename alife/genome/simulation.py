@@ -141,11 +141,11 @@ def run():
     visualizer = Visualizer(*grid_size, wall, wall_gap_size, energy_source_bool, energy_source_size)
 
     scales = 1 / 10 ** (jnp.arange(num_coefficients_forces) / 2)
-    W = scales[None, :] * jax.random.normal(key_forces, (genome_length, num_coefficients_forces))
+    force_weights = scales[None, :] * jax.random.normal(key_forces, (genome_length, num_coefficients_forces))
     update_particles = make_update_particles(
         dt,
         plot_frequency,
-        W,
+        force_weights,
         *grid_size,
         wall,
         wall_gap_size,
