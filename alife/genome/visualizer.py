@@ -79,10 +79,10 @@ class Visualizer:
             )
             plt.gca().add_patch(rectangle)
 
-        for xy, alive in zip(particles.xy, particles.alive):
+        for xy, alive, g in zip(particles.xy, particles.alive, particles.genome):
             if not alive:
                 continue
-            circle = plt.Circle(xy, P_CHARACHTERISTICS.radius, color="blue", fill=True, alpha=0.7)
+            circle = plt.Circle(xy, P_CHARACHTERISTICS.radius, color=self.get_color(g), fill=True, alpha=0.7)
             plt.gca().add_patch(circle)
         plt.text(
             0.86 * self.max_grid_size,
@@ -100,3 +100,15 @@ class Visualizer:
         )
         plt.title(f"Step {step}")
         plt.pause(pause)  # pause to update the plot
+
+    def get_color(self, genome: jax.Array) -> str:
+        if genome.shape[-1] == 2:
+            if jnp.array_equal(genome, jnp.array([0, 0])):
+                return "green"
+            if jnp.array_equal(genome, jnp.array([1, 1])):
+                return "red"
+            if jnp.array_equal(genome, jnp.array([1, 0])):
+                return "blue"
+            return "orange"
+        else:
+            return "blue"
